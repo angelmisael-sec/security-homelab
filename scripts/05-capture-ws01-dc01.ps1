@@ -1,11 +1,13 @@
 #Requires -RunAsAdministrator
+# Usage: .\05-capture-ws01-dc01.ps1 -Tag w03   (w02 = before the domain join, w03 = after)
+param([string]$Tag = 'w02')
 # Week 2: captures WS01 <-> DC01 traffic with pktmon (built into Windows, nothing to install in the VM),
 # generates DNS / Kerberos / LDAP / SMB on purpose, and copies the .pcapng to the host for Wireshark.
 # The capture is NOT committed: it contains Kerberos material that can be cracked offline.
 
 $CredFile = 'E:\Lab\credenciales-lab.txt'
 $OutDir   = 'E:\Lab\captures'
-$Out      = "$OutDir\w02-ws01-dc01.pcapng"
+$Out      = "$OutDir\$Tag-ws01-dc01.pcapng"
 $ErrorActionPreference = 'Stop'
 
 function Get-LabCred($name, $user) {
