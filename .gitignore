@@ -1,0 +1,4 @@
+# Packet captures carry crackable auth material; they stay on the lab disk
+*.pcap
+*.pcapng
+*.etl
