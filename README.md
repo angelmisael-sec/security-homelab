@@ -40,7 +40,8 @@ flowchart LR
 - [x] **Week 01** — Lab design, Hyper-V setup, OSI/TCP-IP and subnetting
 - [x] **Week 02** — Packet analysis with Wireshark (NTLM vs Kerberos, see findings below)
 - [x] **Week 03** — Active Directory from scratch: OUs, groups, users, service account, WS01 domain join
-- [ ] Week 04 — GPO hardening (password/lockout policy, LLMNR/NetBIOS off, Windows LAPS, advanced audit)
+- [x] **Week 04** — GPO hardening: password/lockout policy, RC4 off (AES only), LLMNR off, SMB signing, advanced audit
+- [ ] Week 05 — Windows LAPS + attack the lab (Responder, Kerberoasting) and watch the audit trail light up
 
 ## Build log
 
@@ -53,6 +54,7 @@ flowchart LR
 | [`05-capture-ws01-dc01.ps1`](scripts/05-capture-ws01-dc01.ps1) | Week 2: `pktmon` capture inside WS01 while generating DNS, LDAP, SMB and ICMP to DC01 (`-Tag w03` reruns it after the join) |
 | [`06-ad-structure.ps1`](scripts/06-ad-structure.ps1) | Week 3: OU tree, `GG-*` department groups, 4 staff users, a separate `adm.*` admin account, `svc_sql` with an SPN; `redircmp` so new computers land in an OU where GPOs apply |
 | [`07-join-ws01.ps1`](scripts/07-join-ws01.ps1) | Week 3: joins WS01 to `lab.local`, reboots, checks the secure channel and `nltest /dsgetdc` |
+| [`08-gpo-hardening.ps1`](scripts/08-gpo-hardening.ps1) | Week 4: four baseline GPOs — AES-only Kerberos (kills RC4), LLMNR off, SMB signing, advanced audit + 4688 command line |
 
 ### Week 02 findings (WS01 not domain-joined yet)
 
@@ -68,6 +70,15 @@ flowchart LR
 - Tickets use etype 18 (AES256), but the KDC still advertises 23 (RC4) as an option: RC4 tickets are what Kerberoasting cracks fastest.
 - `\\dc01\SYSVOL` now mounts fine: the week 2 *Access is denied* was tied to the non-joined NTLM path.
 - `svc_sql` has a deliberately weak password and an SPN, kept for the Kerberoasting exercise in Phase 2.
+
+### Week 04 findings (GPO hardening)
+
+- Four GPOs linked at the domain root; verified applied on WS01 with `gpresult /r`.
+- `SupportedEncryptionTypes = 0x18` (24): Kerberos now negotiates **AES only**. RC4 — the fast Kerberoasting path from week 3 — is gone from the offer.
+- LLMNR off (`EnableMulticast = 0`): removes the multicast name-resolution request that Responder-style tools poison to capture hashes.
+- SMB signing required on client and server: blocks NTLM-over-SMB relay.
+- Advanced audit baseline + `ProcessCreationIncludeCmdLine_Enabled = 1`, so 4688 records the full command line — the single most useful event for threat hunting.
+- Password policy follows NIST guidance: 14-char minimum, lockout after 5 tries, length over forced rotation (365-day max age).
 
 Lessons so far:
 - Defender's ASR rule *Block abuse of exploited vulnerable signed drivers* fired while DISM wrote `KslD.sys` into the VM disk. Benign in context (OS image apply), but it is the same rule that stops BYOVD attacks.
