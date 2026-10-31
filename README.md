@@ -43,7 +43,7 @@ flowchart LR
 - [x] **Week 04** — GPO hardening: password/lockout policy, RC4 off (AES only), LLMNR off, SMB signing, advanced audit
 - [x] **Week 05** — Validated the AES-only control: requested a service ticket, confirmed AES (not RC4) in the ticket and in 4769, hardened the service account to AES-only
 - [x] **Week 06** — Windows LAPS: each workstation's local-admin password is now unique, rotated, and stored encrypted in AD
-- [ ] Week 07 — Centralize logs (Sysmon on the endpoints, forward events) — Phase 2 begins
+- [ ] Week 07 — Centralize logs — Phase 2 begins. Done: Sysmon on DC01 + WS01. Next: forward events to one collector
 
 ## Build log
 
@@ -59,6 +59,7 @@ flowchart LR
 | [`08-gpo-hardening.ps1`](scripts/08-gpo-hardening.ps1) | Week 4: four baseline GPOs — AES-only Kerberos (kills RC4), LLMNR off, SMB signing, advanced audit + 4688 command line |
 | [`09-validate-aes-control.ps1`](scripts/09-validate-aes-control.ps1) | Week 5: requests a service ticket from WS01, confirms it is issued as AES-256 (not RC4) in the ticket and in event 4769, then pins the service account to AES-only |
 | [`10-windows-laps.ps1`](scripts/10-windows-laps.ps1) | Week 6: Windows LAPS — extend schema, grant computer self-write, GPO to back up the local-admin password to AD, force WS01 to rotate, read it back |
+| [`11-sysmon.ps1`](scripts/11-sysmon.ps1) | Week 7: downloads Sysmon on the host (signature checked), pushes it into DC01/WS01 over PowerShell Direct with a small config, proves event 1 is logged |
 
 ### Week 02 findings (WS01 not domain-joined yet)
 
@@ -98,6 +99,12 @@ flowchart LR
 - After `Invoke-LapsPolicyProcessing`, WS01's local-admin password was rotated and stored in AD. `Get-LapsADPassword -Identity WS01` reads it back as a domain admin — length 20, with the next expiry recorded.
 - Consequence to remember: WS01's local `labadmin` password is now LAPS-managed, so the value in the lab creds file is stale — retrieve the current one from AD on demand.
 - This kills lateral movement via a shared local-admin password: every machine ends up with a different one.
+
+### Week 07 findings (Sysmon, part 1)
+
+- Sysmon 15.22 (Authenticode signature `Valid`) installed as a service on both machines; the lab switch has no Internet, so it is copied in over PowerShell Direct.
+- Config is small on purpose: process creation (1) with full command line and parent, network connections (3), lsass access (10), files dropped in Temp/Downloads/AppData (11), DNS queries with the asking process (22).
+- Proof: `whoami /groups` run from PowerShell shows up in `Microsoft-Windows-Sysmon/Operational` with image, parent (`powershell.exe`) and command line — the parent/child chain that 4688 alone cannot give.
 
 Lessons so far:
 - Defender's ASR rule *Block abuse of exploited vulnerable signed drivers* fired while DISM wrote `KslD.sys` into the VM disk. Benign in context (OS image apply), but it is the same rule that stops BYOVD attacks.
