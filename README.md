@@ -44,6 +44,7 @@ flowchart LR
 - [x] **Week 05** — Validated the AES-only control: requested a service ticket, confirmed AES (not RC4) in the ticket and in 4769, hardened the service account to AES-only
 - [x] **Week 06** — Windows LAPS: each workstation's local-admin password is now unique, rotated, and stored encrypted in AD
 - [x] **Week 07** — Centralize logs (Phase 2 begins): Sysmon on DC01 + WS01, Windows Event Forwarding to one collector
+- [x] **Week 08** — Threat hunting over the central logs: four hunts (encoded PowerShell, scripts in Temp, failed-logon bursts, odd DNS); the hunt exposed that the week 4 audit baseline had never actually applied, now fixed and verified
 
 ## Build log
 
@@ -61,6 +62,8 @@ flowchart LR
 | [`10-windows-laps.ps1`](scripts/10-windows-laps.ps1) | Week 6: Windows LAPS — extend schema, grant computer self-write, GPO to back up the local-admin password to AD, force WS01 to rotate, read it back |
 | [`11-sysmon.ps1`](scripts/11-sysmon.ps1) | Week 7: downloads Sysmon on the host (signature checked), pushes it into DC01/WS01 over PowerShell Direct with a small config, proves event 1 is logged |
 | [`12-event-forwarding.ps1`](scripts/12-event-forwarding.ps1) | Week 7: DC01 becomes a Windows Event Collector; source-initiated subscription + GPO so workstations push Sysmon and key Security events to it |
+| [`13-threat-hunting.ps1`](scripts/13-threat-hunting.ps1) | Week 8: WS01 produces harmless look-alike activity; four hunts on DC01 find it (`-HuntOnly` reruns just the searches) |
+| [`14-fix-audit-gap.ps1`](scripts/14-fix-audit-gap.ps1) | Week 8: registers the missing audit extension in the week 4 GPO, links it on the DC OU, proves failed Kerberos/credential events are now logged |
 
 ### Week 02 findings (WS01 not domain-joined yet)
 
@@ -113,6 +116,21 @@ flowchart LR
 - Forwarded: every Sysmon event plus Security 4624/4625 (logons), 4688 (process start), 4768/4769 (Kerberos), 4720/4732 (account and group changes).
 - First attempt failed even though the network was fine: the forwarder runs as *Network Service*, which had no read access to the Sysmon channel (`query returns no active channel`, error 5004). Fix: add `(A;;0x1;;;NS)` to the channel's SDDL and add Network Service to *Event Log Readers* for the Security log. Lesson: WEF problems live in the collector's `EventCollector/Operational` and the source's `Forwarding/Operational` logs, not in the network.
 - Verified end to end: events generated on WS01 appear on DC01 within seconds, from WS01 only.
+
+### Week 08 findings (threat hunting)
+
+Method: WS01 generates four harmless look-alike activities (every command only runs `whoami`, writes a line of text, or resolves a name); DC01 is then searched. A hunt that returns nothing means a logging gap.
+
+| Hunt | Pattern | Source | Result |
+|---|---|---|---|
+| H1 | PowerShell with `-EncodedCommand` (T1059.001 / T1027) | Sysmon 1 / Security 4688 | Found, with parent process and command line |
+| H2 | Script dropped in a user-writable folder | Sysmon 11 | Found, after excluding PowerShell's own `__PSScriptPolicyTest` and `ModuleAnalysisCache` noise |
+| H3 | Failed sign-ins for one account, network type 3 | Security 4625 on DC01 | Found only after lowering the threshold: 6 attempts produced 3 events ~45 s apart, so a threshold of 5 missed it |
+| H4 | DNS lookup outside the lab domain, with the asking process | Sysmon 22 | Found; browser and OneDrive lookups are the baseline noise |
+
+- **False positives are the job.** PowerShell Direct logs a 4625 for `<PSDirectVMLegacy>` (logon type 2, SID `S-1-0-0`) every time a session starts; the context (account name, type, timing) is what separates it from a real attack.
+- **Audit baseline had never applied.** The week 4 GPO showed as applied in `gpresult`, but its `audit.csv` was written straight into SYSVOL without registering the Audit Policy Configuration extension (`{F3CCC681-...}`) in `gPCMachineExtensionNames`, so no machine read it. Failed Kerberos requests and credential validations were silently not logged. Fixed in `14-fix-audit-gap.ps1`, then verified: `auditpol` shows Success and Failure on both machines and a sign-in with a nonexistent user now leaves 4768 (status `0x6`) and 4776. Lesson: verify a control by its effect, not by "the policy is applied".
+- **Collector stability.** Filtering `ForwardedEvents` by event ID hung and then crashed the EventLog service on a 4 GB DC01 (`RPC server is unavailable`); the same read without a filter returns in a second. The hunts read unfiltered and filter client-side, and DC01 now has 6 GB.
 
 Lessons so far:
 - Defender's ASR rule *Block abuse of exploited vulnerable signed drivers* fired while DISM wrote `KslD.sys` into the VM disk. Benign in context (OS image apply), but it is the same rule that stops BYOVD attacks.
