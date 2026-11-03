@@ -1,0 +1,43 @@
+# Nmap 7.94SVN scan initiated Tue Nov  3 12:07:54 2026 as: nmap -sV -sC -p 53,88,135,139,389,445,464,593,636,3268,3269,5985,9389,49664,49673,49675,49682,49683,49699,49711,49720 -n -oA s09-3-svc-10.10.0.10 10.10.0.10
+Nmap scan report for 10.10.0.10
+Host is up (0.00024s latency).
+
+PORT      STATE SERVICE       VERSION
+53/tcp    open  domain        Simple DNS Plus
+88/tcp    open  kerberos-sec  Microsoft Windows Kerberos (server time: 2026-11-03 16:07:18Z)
+135/tcp   open  msrpc         Microsoft Windows RPC
+139/tcp   open  netbios-ssn   Microsoft Windows netbios-ssn
+389/tcp   open  ldap          Microsoft Windows Active Directory LDAP (Domain: lab.local0., Site: Default-First-Site-Name)
+445/tcp   open  microsoft-ds?
+464/tcp   open  kpasswd5?
+593/tcp   open  ncacn_http    Microsoft Windows RPC over HTTP 1.0
+636/tcp   open  tcpwrapped
+3268/tcp  open  ldap          Microsoft Windows Active Directory LDAP (Domain: lab.local0., Site: Default-First-Site-Name)
+3269/tcp  open  tcpwrapped
+5985/tcp  open  http          Microsoft HTTPAPI httpd 2.0 (SSDP/UPnP)
+|_http-title: Not Found
+|_http-server-header: Microsoft-HTTPAPI/2.0
+9389/tcp  open  mc-nmf        .NET Message Framing
+49664/tcp open  msrpc         Microsoft Windows RPC
+49673/tcp open  msrpc         Microsoft Windows RPC
+49675/tcp open  msrpc         Microsoft Windows RPC
+49682/tcp open  msrpc         Microsoft Windows RPC
+49683/tcp open  ncacn_http    Microsoft Windows RPC over HTTP 1.0
+49699/tcp open  msrpc         Microsoft Windows RPC
+49711/tcp open  msrpc         Microsoft Windows RPC
+49720/tcp open  msrpc         Microsoft Windows RPC
+MAC Address: 00:15:5D:0A:01:00 (Microsoft)
+Service Info: Host: DC01; OS: Windows; CPE: cpe:/o:microsoft:windows
+
+Host script results:
+| smb2-time: 
+|   date: 2026-11-03T16:08:05
+|_  start_date: N/A
+|_nbstat: NetBIOS name: DC01, NetBIOS user: <unknown>, NetBIOS MAC: 00:15:5d:0a:01:00 (Microsoft)
+| smb2-security-mode: 
+|   3:1:1: 
+|_    Message signing enabled and required
+|_clock-skew: -43s
+
+Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
+# Nmap done at Tue Nov  3 12:09:28 2026 -- 1 IP address (1 host up) scanned in 93.88 seconds

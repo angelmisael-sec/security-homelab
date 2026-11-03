@@ -4,14 +4,15 @@ Hands-on lab where I build, attack, and defend a small corporate network, follow
 
 ## Lab network
 
-Isolated Hyper-V internal switch, no route to my home network.
+Isolated Hyper-V private switch, no route to my home network. The one exception is LNX01's second NIC on Hyper-V's NAT switch, used only to pull packages and to SSH in from the host; it does not forward between its NICs (`FORWARD` policy `DROP`, verified week 9).
 
 ```mermaid
 flowchart LR
-  subgraph LAB["Lab network 10.10.0.0/24 (Hyper-V internal switch)"]
+  NAT(["Hyper-V NAT<br/>packages + SSH only"])
+  subgraph LAB["Lab network 10.10.0.0/24 (Hyper-V private switch)"]
     subgraph SRV["Servers 10.10.0.0/26"]
       DC["DC01 · Windows Server 2025<br/>AD DS, DNS · lab.local"]
-      UB["UB01 · Ubuntu Server 24.04<br/>Linux target, Docker"]
+      UB["LNX01 · Ubuntu Server 24.04<br/>analysis VM: nmap, Docker"]
     end
     subgraph CLI["Clients 10.10.0.64/26"]
       W11["WS01 · Windows 11 Enterprise<br/>domain-joined"]
@@ -25,6 +26,7 @@ flowchart LR
   DC -. logs .-> SIEM
   W11 -. logs .-> SIEM
   UB -. logs .-> SIEM
+  UB --- NAT
 ```
 
 ## Roadmap
@@ -45,6 +47,7 @@ flowchart LR
 - [x] **Week 06** — Windows LAPS: each workstation's local-admin password is now unique, rotated, and stored encrypted in AD
 - [x] **Week 07** — Centralize logs (Phase 2 begins): Sysmon on DC01 + WS01, Windows Event Forwarding to one collector
 - [x] **Week 08** — Threat hunting over the central logs: four hunts (encoded PowerShell, scripts in Temp, failed-logon bursts, odd DNS); the hunt exposed that the week 4 audit baseline had never actually applied, now fixed and verified
+- [x] **Week 09** — Attack surface review: built an Ubuntu analysis VM, mapped every open port on DC01 and WS01 with Nmap, and decided what to close
 
 ## Build log
 
@@ -64,6 +67,7 @@ flowchart LR
 | [`12-event-forwarding.ps1`](scripts/12-event-forwarding.ps1) | Week 7: DC01 becomes a Windows Event Collector; source-initiated subscription + GPO so workstations push Sysmon and key Security events to it |
 | [`13-threat-hunting.ps1`](scripts/13-threat-hunting.ps1) | Week 8: WS01 produces harmless look-alike activity; four hunts on DC01 find it (`-HuntOnly` reruns just the searches) |
 | [`14-fix-audit-gap.ps1`](scripts/14-fix-audit-gap.ps1) | Week 8: registers the missing audit extension in the week 4 GPO, links it on the DC OU, proves failed Kerberos/credential events are now logged |
+| [`15-new-lnx01.ps1`](scripts/15-new-lnx01.ps1) | Week 9: LNX01, Ubuntu Server 24.04 analysis VM, unattended (Subiquity autoinstall from a `CIDATA` disk); lab NIC + NAT NIC matched by MAC; nmap and Docker preinstalled, SSH key only |
 
 ### Week 02 findings (WS01 not domain-joined yet)
 
@@ -131,6 +135,34 @@ Method: WS01 generates four harmless look-alike activities (every command only r
 - **False positives are the job.** PowerShell Direct logs a 4625 for `<PSDirectVMLegacy>` (logon type 2, SID `S-1-0-0`) every time a session starts; the context (account name, type, timing) is what separates it from a real attack.
 - **Audit baseline had never applied.** The week 4 GPO showed as applied in `gpresult`, but its `audit.csv` was written straight into SYSVOL without registering the Audit Policy Configuration extension (`{F3CCC681-...}`) in `gPCMachineExtensionNames`, so no machine read it. Failed Kerberos requests and credential validations were silently not logged. Fixed in `14-fix-audit-gap.ps1`, then verified: `auditpol` shows Success and Failure on both machines and a sign-in with a nonexistent user now leaves 4768 (status `0x6`) and 4776. Lesson: verify a control by its effect, not by "the policy is applied".
 - **Collector stability.** Filtering `ForwardedEvents` by event ID hung and then crashed the EventLog service on a 4 GB DC01 (`RPC server is unavailable`); the same read without a filter returns in a second. The hunts read unfiltered and filter client-side, and DC01 now has 6 GB.
+
+### Week 09 findings (attack surface with Nmap)
+
+Scans from LNX01 (10.10.0.40), raw output in [`scans/week09/`](scans/week09/): ARP discovery of the /26, SYN scan of all 65,535 TCP ports, `-sV -sC` on what was open, and the main UDP ports.
+
+- **Discovery:** 3 hosts up. WS01 blocks ping but answered ARP; on a local segment, "doesn't ping" never means "not there".
+- **DC01:** 21 TCP ports, all expected for a domain controller (53 DNS, 88 Kerberos, 135/593 RPC, 139 NetBIOS, 389/636 LDAP, 445 SMB, 464 kpasswd, 3268/3269 Global Catalog, 5985 WinRM, 9389 AD Web Services, eight dynamic RPC ports in 49xxx). UDP: 53, 88, 123, 137, 389 open.
+- **WS01:** only 135, 5040 and 5985 answer; the other 65,532 are filtered by the Windows firewall.
+
+What I would close, highest risk first:
+
+| # | Finding | Why it matters | Fix |
+|---|---|---|---|
+| 1 | WS01 accepts WinRM (5985) and RPC (135) from any lab host | Workstation-to-workstation remote management is the classic lateral-movement path (ATT&CK T1021.006). Event forwarding only needs WS01 to connect *out* to DC01. | Firewall scope on workstations: allow 5985/135 inbound only from an admin host; remove the WinRM listener if nothing manages WS01 remotely |
+| 2 | NetBIOS name service open on DC01 (137/udp, 139/tcp); `nbstat` leaked its name and MAC | Week 4 turned LLMNR off, but NBT-NS poisoning is the same attack over the other fallback protocol, so that control was only half done | Disable NetBIOS over TCP/IP on every NIC (GPO startup script or DHCP option 001) |
+| 3 | LDAPS (636) and GC over TLS (3269) show as `tcpwrapped` | Most likely the DC has no certificate, so TLS can't start: directory traffic is only on plain 389, and any simple bind would cross the wire in clear text | Issue the DC a certificate (AD CS in a later week), then require LDAP signing and channel binding |
+| 4 | WinRM (5985) on DC01 reachable from every host | Needed for administration, but the DC should only be managed from admin machines | Firewall scope to admin hosts |
+| 5 | WS01 port 5040 (Connected Devices Platform service) | Consumer feature with no use on a corporate workstation; one more listener | Disable `CDPSvc` by GPO |
+| 6 | DC01 clock 43 s behind LNX01 | Within Kerberos' 5-minute tolerance, but the DC has no reliable time source | Point the PDC emulator at an NTP source when the lab gets a router |
+
+What was confirmed working:
+- **SMB signing is required** on DC01 (`smb2-security-mode: Message signing enabled and required`), the week 4 control verified from the network side, the way an outsider sees it.
+- WS01's default firewall leaves almost nothing exposed.
+- LNX01 has `ip_forward=1` (Docker turns it on), but the `FORWARD` chain policy is `DROP`, so the dual-homed analysis VM is not a bridge from the lab to the NAT network.
+
+Notes on reading Nmap:
+- Nmap guessed DC01's DNS server as "Simple DNS Plus"; it is Microsoft DNS. Version detection is a fingerprint guess, so confirm before reporting a version.
+- `open|filtered` on WS01's UDP ports means "no answer". UDP gives no handshake, so silence can't tell an open port from a firewall drop.
 
 Lessons so far:
 - Defender's ASR rule *Block abuse of exploited vulnerable signed drivers* fired while DISM wrote `KslD.sys` into the VM disk. Benign in context (OS image apply), but it is the same rule that stops BYOVD attacks.

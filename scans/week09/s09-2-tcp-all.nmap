@@ -1,0 +1,40 @@
+# Nmap 7.94SVN scan initiated Tue Nov  3 12:05:57 2026 as: nmap -sS -p- -T4 --open -n -oA s09-2-tcp-all 10.10.0.10,30
+Nmap scan report for 10.10.0.10
+Host is up (0.00025s latency).
+Not shown: 65514 filtered tcp ports (no-response)
+Some closed ports may be reported as filtered due to --defeat-rst-ratelimit
+PORT      STATE SERVICE
+53/tcp    open  domain
+88/tcp    open  kerberos-sec
+135/tcp   open  msrpc
+139/tcp   open  netbios-ssn
+389/tcp   open  ldap
+445/tcp   open  microsoft-ds
+464/tcp   open  kpasswd5
+593/tcp   open  http-rpc-epmap
+636/tcp   open  ldapssl
+3268/tcp  open  globalcatLDAP
+3269/tcp  open  globalcatLDAPssl
+5985/tcp  open  wsman
+9389/tcp  open  adws
+49664/tcp open  unknown
+49673/tcp open  unknown
+49675/tcp open  unknown
+49682/tcp open  unknown
+49683/tcp open  unknown
+49699/tcp open  unknown
+49711/tcp open  unknown
+49720/tcp open  unknown
+MAC Address: 00:15:5D:0A:01:00 (Microsoft)
+
+Nmap scan report for 10.10.0.30
+Host is up (0.00030s latency).
+Not shown: 65532 filtered tcp ports (no-response)
+Some closed ports may be reported as filtered due to --defeat-rst-ratelimit
+PORT     STATE SERVICE
+135/tcp  open  msrpc
+5040/tcp open  unknown
+5985/tcp open  wsman
+MAC Address: 00:15:5D:0A:01:01 (Microsoft)
+
+# Nmap done at Tue Nov  3 12:07:54 2026 -- 2 IP addresses (2 hosts up) scanned in 117.69 seconds

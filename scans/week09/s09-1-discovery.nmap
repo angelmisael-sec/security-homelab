@@ -1,0 +1,10 @@
+# Nmap 7.94SVN scan initiated Tue Nov  3 12:04:41 2026 as: nmap -sn -oA s09-1-discovery 10.10.0.0/26
+Nmap scan report for 10.10.0.10
+Host is up (0.00027s latency).
+MAC Address: 00:15:5D:0A:01:00 (Microsoft)
+Nmap scan report for 10.10.0.30
+Host is up (0.00020s latency).
+MAC Address: 00:15:5D:0A:01:01 (Microsoft)
+Nmap scan report for lnx01 (10.10.0.40)
+Host is up.
+# Nmap done at Tue Nov  3 12:05:49 2026 -- 64 IP addresses (3 hosts up) scanned in 68.06 seconds

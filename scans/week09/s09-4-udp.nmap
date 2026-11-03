@@ -1,0 +1,30 @@
+# Nmap 7.94SVN scan initiated Tue Nov  3 12:12:34 2026 as: nmap -sU -p 53,88,123,137,138,389,500,4500 -n -oA s09-4-udp 10.10.0.10,30
+Nmap scan report for 10.10.0.10
+Host is up (0.00037s latency).
+
+PORT     STATE         SERVICE
+53/udp   open          domain
+88/udp   open          kerberos-sec
+123/udp  open          ntp
+137/udp  open          netbios-ns
+138/udp  open|filtered netbios-dgm
+389/udp  open          ldap
+500/udp  open|filtered isakmp
+4500/udp open|filtered nat-t-ike
+MAC Address: 00:15:5D:0A:01:00 (Microsoft)
+
+Nmap scan report for 10.10.0.30
+Host is up (0.00023s latency).
+
+PORT     STATE         SERVICE
+53/udp   open|filtered domain
+88/udp   open|filtered kerberos-sec
+123/udp  open|filtered ntp
+137/udp  open|filtered netbios-ns
+138/udp  open|filtered netbios-dgm
+389/udp  open|filtered ldap
+500/udp  open|filtered isakmp
+4500/udp open|filtered nat-t-ike
+MAC Address: 00:15:5D:0A:01:01 (Microsoft)
+
+# Nmap done at Tue Nov  3 12:12:35 2026 -- 2 IP addresses (2 hosts up) scanned in 1.31 seconds
