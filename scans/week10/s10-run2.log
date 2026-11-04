@@ -1,0 +1,13 @@
+target dc15013b-4b3e-428a-99bc-a1f86c94ee08  task 19d96edc-4eaa-43ca-a463-0f4c5ce8b440  report 271dcc20-faba-4ac3-870f-bde2683f25b3
+09:54:44 Requested 0%
+09:56:45 Running 0%
+09:58:47 Running 0%
+10:00:48 Running 2%
+10:02:50 Running 45%
+10:04:51 Running 47%
+10:06:53 Running 53%
+10:08:54 Running 97%
+10:10:56 Running 99%
+10:12:57 Done -1%
+saved /home/angel/scans/s10-greenbone-run2.xml and /home/angel/scans/s10-greenbone-run2.tsv (1 findings)
+5.0	10.10.0.10	135/tcp	DCE/RPC and MSRPC Services Enumeration Reporting

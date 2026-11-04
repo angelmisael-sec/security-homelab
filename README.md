@@ -48,6 +48,7 @@ flowchart LR
 - [x] **Week 07** — Centralize logs (Phase 2 begins): Sysmon on DC01 + WS01, Windows Event Forwarding to one collector
 - [x] **Week 08** — Threat hunting over the central logs: four hunts (encoded PowerShell, scripts in Temp, failed-logon bursts, odd DNS); the hunt exposed that the week 4 audit baseline had never actually applied, now fixed and verified
 - [x] **Week 09** — Attack surface review: built an Ubuntu analysis VM, mapped every open port on DC01 and WS01 with Nmap, and decided what to close
+- [x] **Week 10** — Vulnerability scanning: Greenbone Community (OpenVAS) in Docker on LNX01, unauthenticated Full-and-fast scan, fixed the top findings and re-scanned: 2 medium + 2 low down to 1 accepted medium
 
 ## Build log
 
@@ -68,6 +69,8 @@ flowchart LR
 | [`13-threat-hunting.ps1`](scripts/13-threat-hunting.ps1) | Week 8: WS01 produces harmless look-alike activity; four hunts on DC01 find it (`-HuntOnly` reruns just the searches) |
 | [`14-fix-audit-gap.ps1`](scripts/14-fix-audit-gap.ps1) | Week 8: registers the missing audit extension in the week 4 GPO, links it on the DC OU, proves failed Kerberos/credential events are now logged |
 | [`15-new-lnx01.ps1`](scripts/15-new-lnx01.ps1) | Week 9: LNX01, Ubuntu Server 24.04 analysis VM, unattended (Subiquity autoinstall from a `CIDATA` disk); lab NIC + NAT NIC matched by MAC; nmap and Docker preinstalled, SSH key only |
+| [`16-greenbone-scan.sh`](scripts/16-greenbone-scan.sh) | Week 10 (runs on LNX01): creates the Greenbone target + task once, starts a run, polls until it ends, saves the XML report and a one-line-per-finding summary (QoD ≥ 70) |
+| [`17-fix-week10.ps1`](scripts/17-fix-week10.ps1) | Week 10: scope WS01's RPC/WinRM inbound rules to DC01, disable CDPSvc, TCP timestamps and NetBIOS over TCP/IP on DC01 + WS01 |
 
 ### Week 02 findings (WS01 not domain-joined yet)
 
@@ -163,6 +166,24 @@ What was confirmed working:
 Notes on reading Nmap:
 - Nmap guessed DC01's DNS server as "Simple DNS Plus"; it is Microsoft DNS. Version detection is a fingerprint guess, so confirm before reporting a version.
 - `open|filtered` on WS01's UDP ports means "no answer". UDP gives no handshake, so silence can't tell an open port from a firewall drop.
+
+### Week 10 findings (Greenbone vulnerability scan)
+Greenbone Community Edition (22.x containers, 191,756 NVTs) on LNX01, unauthenticated, *Full and fast*, *All IANA assigned TCP*, alive test *Consider Alive* (WS01 drops ping). Raw summaries in [`scans/week10/`](scans/week10/).
+
+| Finding (CVSS) | Host | Run 1 (before) | Run 2 (after) | Fix |
+|---|---|---|---|---|
+| DCE/RPC and MSRPC Services Enumeration (5.0) | WS01 | open to the lab | **gone** | Inbound 135 came from the *Remote Assistance (DCOM-In)* rule, enabled by default; scoped to DC01 |
+| DCE/RPC and MSRPC Services Enumeration (5.0) | DC01 | open | open: **accepted risk** | Domain members need the DC's RPC endpoint mapper; compensating control is the isolated lab segment |
+| TCP Timestamps Information Disclosure (2.6) | DC01, WS01 | present | **gone** | `netsh int tcp set global timestamps=disabled` |
+| NetBIOS 137/udp, 139/tcp (week 9 #2) | DC01 | open | **filtered** | NetBIOS over TCP/IP disabled on every NIC |
+| WinRM 5985, CDPSvc 5040 (week 9 #1, #5) | WS01 | open | **filtered** | WinRM scoped to DC01, `CDPSvc` disabled |
+
+Totals: run 1 = 2 medium, 2 low, 33 log; run 2 = 1 medium, 0 low, 24 log. Still open from week 9: DC01 WinRM to all hosts (#4), LDAPS without a certificate (#3), DC01 clock (#6).
+
+Notes:
+- A clean *unauthenticated* scan only says nothing serious shows from the network. An authenticated scan (missing patches, local config) is the next step.
+- Greenbone's feeds and database need ~40 GB; on a 60 GB disk PostgreSQL ran out of space and `gvmd` looped on the error for hours. LNX01's disk is now 160 GB.
+- Three silent failures this week, all caught by cross-checking one source against another: XML results split across lines (empty summary vs. 4 in the web UI), a `pgrep -f` liveness check that matched itself, and a run-numbering bug that overwrote run 1 (recovered from Greenbone's stored report). A watcher must match every way a job can end, not just success.
 
 Lessons so far:
 - Defender's ASR rule *Block abuse of exploited vulnerable signed drivers* fired while DISM wrote `KslD.sys` into the VM disk. Benign in context (OS image apply), but it is the same rule that stops BYOVD attacks.

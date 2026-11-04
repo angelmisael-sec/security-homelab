@@ -1,0 +1,4 @@
+5.0	10.10.0.10	135/tcp	DCE/RPC and MSRPC Services Enumeration Reporting
+5.0	10.10.0.30	135/tcp	DCE/RPC and MSRPC Services Enumeration Reporting
+2.6	10.10.0.10	general/tcp	TCP Timestamps Information Disclosure
+2.6	10.10.0.30	general/tcp	TCP Timestamps Information Disclosure
