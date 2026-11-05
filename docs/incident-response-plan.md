@@ -1,6 +1,7 @@
 # Incident Response Plan — security-homelab
 
 Owner: Angel Diaz Freytes · Version 1.0 · 2026-11-05 · Review: every quarter and after every incident
+
 Framework: NIST SP 800-61 (incident handling lifecycle), mapped to the NIST CSF 2.0 *Respond* and *Recover* functions.
 
 ## 1. Scope
