@@ -14,7 +14,7 @@ From 2026-11-01 to 2026-11-05, no events from WS01 reached the collector on DC01
 | 11-04 12:52 | Found by accident while taking screenshots for the week 7 write-up: `wecutil gr LabForward` shows WS01 `Inactive`, `LastHeartbeatTime 2026-11-01T10:08` |
 | 11-04 12:55–13:20 | Diagnosis (below). `wecutil rs` and a WinRM restart do not recover it |
 | 11-05 15:16 | Subscription deleted and recreated (`12-event-forwarding.ps1`); WS01 `Active`, fresh events within seconds |
-| 11-05 ~16:30 | Verified again after the week 11 isolation test |
+| 11-05 16:54 | Verified again after the week 11 isolation test (WS01 unplugged ~30 min, recovered on its own) |
 
 ## Detection
 Not detected by any control: found by chance. **Time to detect: about 3 days.**
