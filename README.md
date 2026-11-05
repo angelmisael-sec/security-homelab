@@ -71,6 +71,7 @@ flowchart LR
 | [`15-new-lnx01.ps1`](scripts/15-new-lnx01.ps1) | Week 9: LNX01, Ubuntu Server 24.04 analysis VM, unattended (Subiquity autoinstall from a `CIDATA` disk); lab NIC + NAT NIC matched by MAC; nmap and Docker preinstalled, SSH key only |
 | [`16-greenbone-scan.sh`](scripts/16-greenbone-scan.sh) | Week 10 (runs on LNX01): creates the Greenbone target + task once, starts a run, polls until it ends, saves the XML report and a one-line-per-finding summary (QoD ≥ 70) |
 | [`17-fix-week10.ps1`](scripts/17-fix-week10.ps1) | Week 10: scope WS01's RPC/WinRM inbound rules to DC01, disable CDPSvc, TCP timestamps and NetBIOS over TCP/IP on DC01 + WS01 |
+| [`18-fix-dc01-winrm-time.ps1`](scripts/18-fix-dc01-winrm-time.ps1) | Week 10 follow-up: DC01 WinRM inbound scoped to the domain-member range (WEF still needs it); PDC emulator syncs from LNX01 (chrony) instead of nothing, Hyper-V time provider off inside the DC |
 
 ### Week 02 findings (WS01 not domain-joined yet)
 
@@ -178,7 +179,14 @@ Greenbone Community Edition (22.x containers, 191,756 NVTs) on LNX01, unauthenti
 | NetBIOS 137/udp, 139/tcp (week 9 #2) | DC01 | open | **filtered** | NetBIOS over TCP/IP disabled on every NIC |
 | WinRM 5985, CDPSvc 5040 (week 9 #1, #5) | WS01 | open | **filtered** | WinRM scoped to DC01, `CDPSvc` disabled |
 
-Totals: run 1 = 2 medium, 2 low, 33 log; run 2 = 1 medium, 0 low, 24 log. Still open from week 9: DC01 WinRM to all hosts (#4), LDAPS without a certificate (#3), DC01 clock (#6).
+Totals: run 1 = 2 medium, 2 low, 33 log; run 2 = 1 medium, 0 low, 24 log.
+
+Week 9 leftovers, closed with script 18:
+- **#4 DC01 WinRM:** couldn't simply close, WS01 forwards events to it over WinRM. Scoped to `10.10.0.11-10.10.0.39` (domain members); the analysis VM is out.
+- **#6 DC01 clock:** the PDC emulator is the domain's time root and had no source. LNX01 now serves NTP to the lab (chrony, syncing from Internet over its NAT NIC); DC01 points at it and Hyper-V's time provider is disabled in the DC. Offset 41 s → 3.8 s the next day and converging (w32time slews, it doesn't step).
+- **#3 LDAPS without a certificate** stays open until AD CS (certificates week).
+
+**Incident found while re-checking week 7:** event forwarding from WS01 had been dead since 2026-11-01. DC01 was briefly down that day, WS01's retries ran out and the collector marked the source *Inactive* (`Forwarding/Operational` error 105: "the event source of the push subscription is in disable or inactive"). `wecutil rs` and restarting WinRM did not recover it; deleting and recreating the subscription (re-running script 12) did. Nobody noticed for three days: a silent log source. Also, script 12's final check passes on *old* forwarded events, so freshness must be checked by comparing the newest event's time with now.
 
 Notes:
 - A clean *unauthenticated* scan only says nothing serious shows from the network. An authenticated scan (missing patches, local config) is the next step.
