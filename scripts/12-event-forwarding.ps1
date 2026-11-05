@@ -72,13 +72,16 @@ Invoke-Command -VMName WS01 -Credential $dom -ScriptBlock {
 Invoke-Command -VMName DC01 -Credential $dom -ScriptBlock { $ErrorActionPreference = 'Continue'; wecutil rs LabForward 2>&1 | Out-Null }   # retry: the first attempt gave up before WS01 had access
 
 '';'=== 3) Generate events on WS01 and wait for them to appear on DC01 (up to 4 min) ==='
+# Only events newer than this run count: old forwarded events would pass the check even with forwarding dead (IR-2026-001)
+$since = Invoke-Command -VMName DC01 -Credential $dom -ScriptBlock { Get-Date }
 Invoke-Command -VMName WS01 -Credential $dom -ScriptBlock { hostname | Out-Null; ipconfig /all | Out-Null; nltest /dsgetdc:lab.local | Out-Null }
 $found = $null
 for ($i = 0; $i -lt 16 -and -not $found; $i++) {
     Start-Sleep 15
-    $found = Invoke-Command -VMName DC01 -Credential $dom -ScriptBlock {
+    $found = Invoke-Command -VMName DC01 -Credential $dom -ArgumentList $since -ScriptBlock {
+        param($since)
         Get-WinEvent -LogName ForwardedEvents -MaxEvents 200 -ErrorAction SilentlyContinue |
-            Where-Object { $_.MachineName -like 'WS01*' } |
+            Where-Object { $_.MachineName -like 'WS01*' -and $_.TimeCreated -gt $since } |
             Group-Object Id | Sort-Object Count -Descending | Select-Object -First 6 Name, Count | Format-Table -AutoSize | Out-String
     }
 }

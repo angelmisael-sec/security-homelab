@@ -49,6 +49,7 @@ flowchart LR
 - [x] **Week 08** — Threat hunting over the central logs: four hunts (encoded PowerShell, scripts in Temp, failed-logon bursts, odd DNS); the hunt exposed that the week 4 audit baseline had never actually applied, now fixed and verified
 - [x] **Week 09** — Attack surface review: built an Ubuntu analysis VM, mapped every open port on DC01 and WS01 with Nmap, and decided what to close
 - [x] **Week 10** — Vulnerability scanning: Greenbone Community (OpenVAS) in Docker on LNX01, unauthenticated Full-and-fast scan, fixed the top findings and re-scanned: 2 medium + 2 low down to 1 accepted medium
+- [x] **Week 11** — Governance and incident response: [incident response plan](docs/incident-response-plan.md) (NIST 800-61), first-response triage + isolation script tested on WS01, first real post-incident report ([IR-2026-001](docs/incidents/IR-2026-001-wef-outage.md))
 
 ## Build log
 
@@ -72,6 +73,7 @@ flowchart LR
 | [`16-greenbone-scan.sh`](scripts/16-greenbone-scan.sh) | Week 10 (runs on LNX01): creates the Greenbone target + task once, starts a run, polls until it ends, saves the XML report and a one-line-per-finding summary (QoD ≥ 70) |
 | [`17-fix-week10.ps1`](scripts/17-fix-week10.ps1) | Week 10: scope WS01's RPC/WinRM inbound rules to DC01, disable CDPSvc, TCP timestamps and NetBIOS over TCP/IP on DC01 + WS01 |
 | [`18-fix-dc01-winrm-time.ps1`](scripts/18-fix-dc01-winrm-time.ps1) | Week 10 follow-up: DC01 WinRM inbound scoped to the domain-member range (WEF still needs it); PDC emulator syncs from LNX01 (chrony) instead of nothing, Hyper-V time provider off inside the DC |
+| [`19-ir-triage.ps1`](scripts/19-ir-triage.ps1) | Week 11: incident triage for a lab VM: volatile data first (connections, processes), optional isolation by unplugging its NICs in Hyper-V, then sessions/admins/tasks/24 h of logons and Sysmon; SHA-256 chain of custody, self-checked |
 
 ### Week 02 findings (WS01 not domain-joined yet)
 
