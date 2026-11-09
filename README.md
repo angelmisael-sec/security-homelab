@@ -50,6 +50,7 @@ flowchart LR
 - [x] **Week 09** — Attack surface review: built an Ubuntu analysis VM, mapped every open port on DC01 and WS01 with Nmap, and decided what to close
 - [x] **Week 10** — Vulnerability scanning: Greenbone Community (OpenVAS) in Docker on LNX01, unauthenticated Full-and-fast scan, fixed the top findings and re-scanned: 2 medium + 2 low down to 1 accepted medium
 - [x] **Week 11** — Governance and incident response: [incident response plan](docs/incident-response-plan.md) (NIST 800-61), first-response triage + isolation script tested on WS01, first real post-incident report ([IR-2026-001](docs/incidents/IR-2026-001-wef-outage.md))
+- [x] **Week 12** — Security+ (SY0-701) review: performance-based practice built from this lab (firewall rule order, ports seen on DC01, attack types from real-looking Windows and web logs) plus a 36-question check weighted by exam domain, reviewing only what I miss
 
 ## Build log
 
