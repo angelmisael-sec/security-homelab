@@ -1,0 +1,13 @@
+#!/bin/bash
+# wzd <rule.id> [minutes] [n]: the last N alerts of one rule, key fields only
+A=$(sed -n 1p ~/.wazuh-pass); R=$1; M=${2:-60}; N=${3:-3}
+curl -sk -u "admin:$A" -H 'Content-Type: application/json' "https://127.0.0.1:9200/wazuh-alerts-*/_search" -d '{"size":'"$N"',"sort":[{"timestamp":"desc"}],"query":{"bool":{"filter":[{"term":{"rule.id":"'"$R"'"}},{"range":{"timestamp":{"gte":"now-'"$M"'m"}}}]}}}' > /tmp/wzd.json
+python3 - <<'PY'
+import json
+for h in json.load(open('/tmp/wzd.json'))['hits']['hits']:
+    s = h['_source']; ed = s.get('data', {}).get('win', {}).get('eventdata', {}); sysd = s.get('data', {}).get('win', {}).get('system', {})
+    print('---', s['timestamp'], s['agent']['name'], 'rule', s['rule']['id'], 'lvl', s['rule']['level'], '|', s['rule']['description'][:90])
+    print('    mitre:', s['rule'].get('mitre', {}).get('id'), ' eventID:', sysd.get('eventID'))
+    for k in ('image', 'targetFilename', 'commandLine', 'parentImage', 'targetUserName', 'ipAddress', 'status', 'subStatus', 'logonType'):
+        if k in ed: print('    %-15s %s' % (k, ed[k][:150]))
+PY

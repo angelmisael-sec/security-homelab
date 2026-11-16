@@ -1,0 +1,13 @@
+<!-- Lab tuning for Wazuh (manager: /var/ossec/etc/rules/local_rules.xml).
+     Local rule ids start at 100000; built-in rules are never edited (updates would overwrite them). -->
+<group name="local,sysmon,tuning,">
+  <!-- PowerShell writes and deletes __PSScriptPolicyTest_xxxxxxxx.xxx.ps1 in Temp every time it starts (AppLocker
+       policy check). Rule 92213 rates that level 15. Only this exact pattern, written by powershell.exe, is lowered;
+       any other script dropped in Temp still hits 92213. Windows paths arrive with doubled backslashes, hence \\+ -->
+  <rule id="100100" level="3">
+    <if_sid>92213</if_sid>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\+powershell\.exe$</field>
+    <field name="win.eventdata.targetFilename" type="pcre2">(?i)\\+AppData\\+Local\\+Temp\\+__PSScriptPolicyTest_[a-z0-9]{8}\.[a-z0-9]{3}\.ps1$</field>
+    <description>Tuned: PowerShell policy-test script in Temp (known benign; was rule 92213 level 15)</description>
+  </rule>
+</group>

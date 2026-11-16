@@ -1,0 +1,14 @@
+#!/bin/bash
+# wzq [minutes]: Wazuh alerts of the last N minutes, grouped by agent and rule (password from ~/.wazuh-pass, never printed)
+A=$(sed -n 1p ~/.wazuh-pass); M=${1:-20}
+curl -sk -u "admin:$A" -H 'Content-Type: application/json' "https://127.0.0.1:9200/wazuh-alerts-*/_search" -d '{
+ "size":0,"query":{"range":{"timestamp":{"gte":"now-'"$M"'m"}}},
+ "aggs":{"a":{"terms":{"field":"agent.name","size":10},"aggs":{"r":{"terms":{"field":"rule.id","size":25},"aggs":{"d":{"terms":{"field":"rule.description","size":1}},"l":{"max":{"field":"rule.level"}}}}}}}}' > /tmp/wzq.json
+python3 - <<'PY'
+import json
+j = json.load(open('/tmp/wzq.json'))
+print('%-14s %-7s %-4s %-5s %s' % ('AGENT', 'RULE', 'LVL', 'HITS', 'DESCRIPTION'))
+for a in j['aggregations']['a']['buckets']:
+    for r in a['r']['buckets']:
+        print('%-14s %-7s %-4d %-5d %s' % (a['key'], r['key'], int(r['l']['value']), r['doc_count'], r['d']['buckets'][0]['key'][:75]))
+PY

@@ -51,6 +51,7 @@ flowchart LR
 - [x] **Week 10** — Vulnerability scanning: Greenbone Community (OpenVAS) in Docker on LNX01, unauthenticated Full-and-fast scan, fixed the top findings and re-scanned: 2 medium + 2 low down to 1 accepted medium
 - [x] **Week 11** — Governance and incident response: [incident response plan](docs/incident-response-plan.md) (NIST 800-61), first-response triage + isolation script tested on WS01, first real post-incident report ([IR-2026-001](docs/incidents/IR-2026-001-wef-outage.md))
 - [x] **Week 12** — Security+ (SY0-701) review: performance-based practice built from this lab (firewall rule order, ports seen on DC01, attack types from real-looking Windows and web logs) plus a 36-question check weighted by exam domain, reviewing only what I miss
+- [x] **Week 14** — First SIEM: Wazuh 4.14 in Docker on LNX01 with agents on DC01, WS01 and LNX01 (Sysmon included), default passwords replaced before first start, four detections tested end to end, one false positive tuned. [Runbook and log-flow diagram](docs/wazuh.md)
 
 ## Build log
 
@@ -75,6 +76,7 @@ flowchart LR
 | [`17-fix-week10.ps1`](scripts/17-fix-week10.ps1) | Week 10: scope WS01's RPC/WinRM inbound rules to DC01, disable CDPSvc, TCP timestamps and NetBIOS over TCP/IP on DC01 + WS01 |
 | [`18-fix-dc01-winrm-time.ps1`](scripts/18-fix-dc01-winrm-time.ps1) | Week 10 follow-up: DC01 WinRM inbound scoped to the domain-member range (WEF still needs it); PDC emulator syncs from LNX01 (chrony) instead of nothing, Hyper-V time provider off inside the DC |
 | [`19-ir-triage.ps1`](scripts/19-ir-triage.ps1) | Week 11: incident triage for a lab VM: volatile data first (connections, processes), optional isolation by unplugging its NICs in Hyper-V, then sessions/admins/tasks/24 h of logons and Sysmon; SHA-256 chain of custody, self-checked |
+| [`20-wazuh-agents.ps1`](scripts/20-wazuh-agents.ps1) | Week 14: Wazuh agent on DC01 and WS01 (MSI downloaded on the host, Authenticode checked, copied over PowerShell Direct), enrolled with the manager on LNX01 |
 
 ### Week 02 findings (WS01 not domain-joined yet)
 
@@ -195,6 +197,21 @@ Notes:
 - A clean *unauthenticated* scan only says nothing serious shows from the network. An authenticated scan (missing patches, local config) is the next step.
 - Greenbone's feeds and database need ~40 GB; on a 60 GB disk PostgreSQL ran out of space and `gvmd` looped on the error for hours. LNX01's disk is now 160 GB.
 - Three silent failures this week, all caught by cross-checking one source against another: XML results split across lines (empty summary vs. 4 in the web UI), a `pgrep -f` liveness check that matched itself, and a run-numbering bug that overwrote run 1 (recovered from Greenbone's stored report). A watcher must match every way a job can end, not just success.
+
+### Week 14 findings (Wazuh SIEM)
+Setup, diagram and traps: [docs/wazuh.md](docs/wazuh.md). Each detection was triggered on purpose and confirmed in the alerts index and the dashboard:
+
+| Test | Rule fired | Level | Notes |
+|---|---|---|---|
+| 12 Kerberos logons from WS01 for a user that does not exist | 60205 *Multiple Windows audit failure events* (8 × 4768 status 0x6 from one IP in 240 s) | 10 | Only possible because week 8 fixed the audit baseline; DC01 logged no 4625 for these, so the expected 60204 did not fire |
+| `powershell -EncodedCommand` (harmless `Get-Date`) | 92057 *Powershell.exe spawned a powershell process which executed a base64 encoded command* (T1059.001) | 12 | First attempt missed: the agent was stopped a moment after, before it read the event |
+| WS01 network unplugged for 3 minutes | 504 *Wazuh agent disconnected* (T1562.001) | 3 | The silent-source alert IR-2026-001 lacked. A clean agent stop raises 506 instead |
+| New PowerShell session (creates `__PSScriptPolicyTest_*.ps1` in Temp) | 92213 → tuned to local 100100 | 15 → 3 | Known benign, already spotted by hand in week 8 |
+
+Other findings:
+- **The host's clock is ~56 s slow and has never synced** (`w32tm`: source *Local CMOS Clock*). WS01 takes its time from the host through Hyper-V, while DC01 now syncs from LNX01 (week 10), so the two disagree by about a minute and correlated timelines come out of order.
+- Wazuh's own configuration assessment (CIS benchmarks) runs on every agent by default; its results are the bulk of the medium alerts and are the backlog for later hardening.
+- Agent enrollment needs no password by default: any machine that reaches 1515 can register as an agent. Next hardening step: `<use_password>` in `authd`.
 
 Lessons so far:
 - Defender's ASR rule *Block abuse of exploited vulnerable signed drivers* fired while DISM wrote `KslD.sys` into the VM disk. Benign in context (OS image apply), but it is the same rule that stops BYOVD attacks.

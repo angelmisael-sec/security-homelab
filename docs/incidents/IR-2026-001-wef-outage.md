@@ -38,7 +38,7 @@ The subscription is source-initiated. While DC01 was unavailable, WS01's connect
 | Recreate the subscription and verify with fresh events | Done 11-05 |
 | Weekly source-health check written into the IR plan (section 4) | Done 11-05 |
 | After any WS01 network change (isolation test), verify forwarding resumed | Done 11-05, see week 11 |
-| Alert on silent log sources ("no events from host X in N hours") | Week 14, Wazuh |
+| Alert on silent log sources | Done 11-16: Wazuh rule 504 "agent disconnected", tested by unplugging WS01 |
 | Fix script 12's verification to require events newer than the run | Done 11-05 |
 
 ## Lesson
